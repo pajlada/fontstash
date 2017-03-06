@@ -107,25 +107,6 @@ The size of the internal buffer is defined using `FONS_VERTEX_COUNT` define. The
 #include "fontstash.h"
 ```
 
-## Compiling
-
-In order to compile the demo project, your will need to install [GLFW](http://www.glfw.org/) to compile.
-
-FontStash example project uses [premake4](http://industriousone.com/premake) to build platform specific projects, now is good time to install it if you don't have it already. To build the example, navigate into the root folder in your favorite terminal, then:
-
-- *OS X*: `premake4 xcode4`
-- *Windows*: `premake4 vs2010`
-- *Linux*: `premake4 gmake`
-
-See premake4 documentation for full list of supported build file types. The projects will be created in `build` folder. An example of building and running the example on OS X:
-
-```bash
-$ premake4 gmake
-$ cd build/
-$ make
-$ ./example
-```
-
 # OpenGL 3+ support
 
 When using font stash with OpenGL 3 you run into problems due to OGLs switch to using vertex arrays, vertex buffers and removal of the fixed rendering pipeline. 

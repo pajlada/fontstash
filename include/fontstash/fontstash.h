@@ -23,7 +23,7 @@
 
 enum FONSflags {
 	FONS_ZERO_TOPLEFT = 1,
-	FONS_ZERO_BOTTOMLEFT = 2,
+	FONS_ZERO_BOTTOMLEFT = 2
 };
 
 enum FONSalign {
@@ -35,18 +35,20 @@ enum FONSalign {
 	FONS_ALIGN_TOP 		= 1<<3,
 	FONS_ALIGN_MIDDLE	= 1<<4,
 	FONS_ALIGN_BOTTOM	= 1<<5,
-	FONS_ALIGN_BASELINE	= 1<<6, // Default
+	FONS_ALIGN_BASELINE	= 1<<6  // Default
 };
 
 enum FONSerrorCode {
 	// Font atlas is full.
 	FONS_ATLAS_FULL = 1,
-	// Scratch memory used to render glyphs is full, requested size reported in 'val', you may need to bump up FONS_SCRATCH_BUF_SIZE.		
+	// Scratch memory used to render glyphs is full, requested size
+	// reported in 'val', you may need to bump up FONS_SCRATCH_BUF_SIZE.
 	FONS_SCRATCH_FULL = 2,
-	// Calls to fonsPushState has craeted too large stack, if you need deep state stack bump up FONS_MAX_STATES.
+	// Calls to fonsPushState has craeted too large stack, if you need
+	// deep state stack bump up FONS_MAX_STATES.
 	FONS_STATES_OVERFLOW = 3,
 	// Trying to pop too many states fonsPopState().
-	FONS_STATES_UNDERFLOW = 4,
+	FONS_STATES_UNDERFLOW = 4
 };
 
 struct FONSparams {
@@ -153,7 +155,7 @@ typedef struct FONSttFontImpl FONSttFontImpl;
 
 static FT_Library ftLibrary;
 
-int fons__tt_init()
+int fons__tt_init(FONScontext *context)
 {
 	FT_Error ftError;
 	ftError = FT_Init_FreeType(&ftLibrary);
@@ -249,16 +251,14 @@ struct FONSttFontImpl {
 };
 typedef struct FONSttFontImpl FONSttFontImpl;
 
-int fons__tt_init(FONScontext *context)
+int fons__tt_init(FONScontext *)
 {
-	FONS_NOTUSED(context);
 	return 1;
 }
 
-int fons__tt_loadFont(FONScontext *context, FONSttFontImpl *font, unsigned char *data, int dataSize)
+int fons__tt_loadFont(FONScontext *context, FONSttFontImpl *font, unsigned char *data, int /*dataSize*/)
 {
 	int stbError;
-	FONS_NOTUSED(dataSize);
 
 	font->font.userdata = context;
 	stbError = stbtt_InitFont(&font->font, data, 0);
@@ -280,10 +280,9 @@ int fons__tt_getGlyphIndex(FONSttFontImpl *font, int codepoint)
 	return stbtt_FindGlyphIndex(&font->font, codepoint);
 }
 
-int fons__tt_buildGlyphBitmap(FONSttFontImpl *font, int glyph, float size, float scale,
+int fons__tt_buildGlyphBitmap(FONSttFontImpl *font, int glyph, float /*size*/, float scale,
 							  int *advance, int *lsb, int *x0, int *y0, int *x1, int *y1)
 {
-	FONS_NOTUSED(size);
 	stbtt_GetGlyphHMetrics(&font->font, glyph, advance, lsb);
 	stbtt_GetGlyphBitmapBox(&font->font, glyph, scale, scale, x0, y0, x1, y1);
 	return 1;
@@ -445,7 +444,27 @@ static void fons__tmpfree(void* ptr, void* up)
 	// empty
 }
 
+/********************************************************************************/
 // Copyright (c) 2008-2010 Bjoern Hoehrmann <bjoern@hoehrmann.de>
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+//
 // See http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ for details.
 
 #define FONS_UTF8_ACCEPT 0
@@ -483,8 +502,10 @@ static unsigned int fons__decutf8(unsigned int* state, unsigned int* codep, unsi
 	*state = utf8d[256 + *state + type];
 	return *state;
 }
+/********************************************************************************/
 
-// Atlas based on Skyline Bin Packer by Jukka Jylänki
+// Atlas based on Public Domain Skyline Bin Packer by Jukka Jylänki
+// https://github.com/juj/RectangleBinPack
 
 static void fons__deleteAtlas(FONSatlas* atlas)
 {
@@ -855,8 +876,14 @@ int fonsAddFont(FONScontext* stash, const char* name, const char* path)
 	unsigned char* data = NULL;
 
 	// Read in the font data.
+#ifdef _MSC_VER
+	errno_t err;
+	if ((err = fopen_s(&fp, path, "r" )) != 0) goto error;
+#else
 	fp = fopen(path, "rb");
 	if (fp == NULL) goto error;
+#endif
+
 	fseek(fp,0,SEEK_END);
 	dataSize = (int)ftell(fp);
 	fseek(fp,0,SEEK_SET);
@@ -885,8 +912,12 @@ int fonsAddFontMem(FONScontext* stash, const char* name, unsigned char* data, in
 
 	font = stash->fonts[idx];
 
+#ifdef _MSC_VER
+	strncpy_s(font->name, _countof(font->name), name, _TRUNCATE);
+#else
 	strncpy(font->name, name, sizeof(font->name));
 	font->name[sizeof(font->name)-1] = '\0';
+#endif
 
 	// Init hash lookup.
 	for (i = 0; i < FONS_HASH_LUT_SIZE; ++i)
@@ -1121,7 +1152,7 @@ static void fons__getQuad(FONScontext* stash, FONSfont* font,
 
 	// Each glyph has 2px border to allow good interpolation,
 	// one pixel to prevent leaking, and one to allow good interpolation for rendering.
-	// Inset the texture region by one pixel for corret interpolation.
+	// Inset the texture region by one pixel for correct interpolation.
 	xoff = (short)(glyph->xoff+1);
 	yoff = (short)(glyph->yoff+1);
 	x0 = (float)(glyph->x0+1);
